@@ -62,6 +62,25 @@
     <div id="loading" class="loading hidden"><div class="spinner"></div></div>
   </div>
 
+  <script>
+    /* webOS 4.x（Chromium 53）启动前置补丁。
+       Vite 打包产物会在主 IIFE 之外、脚本加载瞬间就读取 Object.getOwnPropertyDescriptors
+       来构造对象展开辅助函数（var $0 = Object.getOwnPropertyDescriptors; ... un=(a,b)=>defProps(a,$0(b))），
+       这一步早于 src/core/compat.js 执行；若此处缺失，任何 {...x, y} 展开都会抛 TypeError。
+       内联脚本不参与打包转译，故保持 ES5 写法。 */
+    (function () {
+      if (typeof Object.getOwnPropertyDescriptors !== 'function') {
+        Object.getOwnPropertyDescriptors = function (obj) {
+          var out = {};
+          var names = Object.getOwnPropertyNames(obj);
+          for (var i = 0; i < names.length; i++) {
+            out[names[i]] = Object.getOwnPropertyDescriptor(obj, names[i]);
+          }
+          return out;
+        };
+      }
+    })();
+  </script>
   <!-- 启动诊断层：内联样式 + ES5 普通脚本，主程序（module）加载失败时也能显示，避免纯黑屏 -->
   <div id="boot-diag" style="position:fixed;left:0;top:0;right:0;bottom:0;z-index:2147483647;pointer-events:none;color:#fff;font-family:sans-serif;">
     <div id="boot-diag-box" style="position:absolute;left:4%;top:6%;max-width:88%;background:rgba(0,0,0,0.8);border-radius:8px;white-space:pre-wrap;word-break:break-all;line-height:1.5;"></div>

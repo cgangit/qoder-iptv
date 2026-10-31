@@ -1,4 +1,6 @@
 // 应用入口：初始化各模块、加载源、全局遥控分发
+// 兼容层必须最先执行：webOS 4.x 是 Chromium 53，缺若干运行时 API。
+import './core/compat.js';
 import { KEY, digitOf } from './core/keys.js';
 import { fetchM3U, applyActiveSource, renumberChannels, groupChannels } from './core/m3uParser.js';
 import { epgStore } from './core/epgStore.js';

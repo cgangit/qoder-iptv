@@ -266,7 +266,11 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    target: 'chrome79',
+    // webOS 4.0/4.5 的内核是 Chromium 53（webOS 5 是 68，6 是 79）。
+    // 目标定在 chrome53：async/await、对象展开、可选链等语法全部由 esbuild 降级。
+    // 运行时缺失的 API（AbortController、padStart、Promise#finally 等）由
+    // src/core/compat.js 在入口处打补丁，详见该文件注释。
+    target: 'chrome53',
     emptyOutDir: true,
     modulePreload: false,
     // IIFE 单块输出时 Vite 默认把 CSS 塞进 JS 运行时注入；关掉拆分才会产出独立的 <link>。
