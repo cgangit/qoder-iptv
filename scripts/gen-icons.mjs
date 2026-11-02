@@ -1,7 +1,8 @@
-// 生成 webOS 应用图标：从 assets/app-icon-src.png 裁出图标主体后缩放输出
+// 生成 webOS 应用图标：把 assets/app-icon-src.png 整幅等比缩放到目标尺寸。
 //   icon.png      80x80
 //   largeIcon.png 130x130
 // 不依赖任何第三方库，使用 Node 内置 zlib 手写 PNG 解码/编码。
+// 素材需为方形、可带透明通道；透明区域原样保留，不额外做圆角蒙版。
 // 运行：node scripts/gen-icons.mjs  （已挂到 npm 的 prebuild / predev）
 import { deflateSync, inflateSync } from 'zlib';
 import { writeFileSync, readFileSync, existsSync } from 'fs';
@@ -146,108 +147,57 @@ function decodePNG(buf) {
   return { width, height, rgba };
 }
 
-/* ---------------- 图标加工 ---------------- */
+/* ---------------- 缩放 ---------------- */
 
-// 自动定位图标主体：只统计"有颜色"的像素（饱和度足够高）。
-// 素材四周是浅灰底且右下角带白灰色水印，它们饱和度都很低，因此不会被计入，
-// 裁出主体的同时水印也就被去掉了。
-function findSubjectBox({ width, height, rgba }) {
-  let x0 = width;
-  let y0 = height;
-  let x1 = -1;
-  let y1 = -1;
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const i = (y * width + x) * 4;
-      const r = rgba[i];
-      const g = rgba[i + 1];
-      const b = rgba[i + 2];
-      const max = Math.max(r, g, b);
-      const min = Math.min(r, g, b);
-      const sat = max === 0 ? 0 : (max - min) / max;
-      // 阈值取得偏高，好让主体边缘的抗锯齿过渡像素（紫/蓝与浅灰的混色）不被计入，
-      // 否则裁剪框会比圆角方块大一圈，圆角外的浅灰底就会露出来
-      if (sat > 0.5 && max > 60) {
-        if (x < x0) x0 = x;
-        if (y < y0) y0 = y;
-        if (x > x1) x1 = x;
-        if (y > y1) y1 = y;
-      }
-    }
-  }
-  if (x1 < 0) return { x: 0, y: 0, size: Math.min(width, height) };
-  // 收成正方形（以较长边为准并居中），保证图标不变形
-  const w = x1 - x0 + 1;
-  const h = y1 - y0 + 1;
-  const size = Math.max(w, h);
-  let x = Math.round(x0 - (size - w) / 2);
-  let y = Math.round(y0 - (size - h) / 2);
-  x = Math.max(0, Math.min(x, width - size));
-  y = Math.max(0, Math.min(y, height - size));
-  return { x, y, size };
-}
-
-// 面积平均缩放（box filter）：把源图的 box 区域缩到 out×out
-function resizeArea(src, box, out) {
+// 面积平均缩放（box filter），按 alpha 预乘避免透明边缘渗色。
+// 源图整体等比缩放进 out×out 画布并居中；多余区域透明。
+function resizeToSquare(src, out) {
   const dst = Buffer.alloc(out * out * 4);
-  const scale = box.size / out;
+  const scale = Math.min(out / src.width, out / src.height);
+  const drawW = src.width * scale;
+  const drawH = src.height * scale;
+  const offX = (out - drawW) / 2;
+  const offY = (out - drawH) / 2;
+
   for (let dy = 0; dy < out; dy++) {
-    const sy0 = box.y + dy * scale;
-    const sy1 = sy0 + scale;
-    const iy0 = Math.floor(sy0);
+    const sy0 = (dy - offY) / scale;
+    const sy1 = (dy + 1 - offY) / scale;
+    if (sy1 <= 0 || sy0 >= src.height) continue;
+    const iy0 = Math.max(0, Math.floor(sy0));
     const iy1 = Math.min(src.height - 1, Math.ceil(sy1) - 1);
+
     for (let dx = 0; dx < out; dx++) {
-      const sx0 = box.x + dx * scale;
-      const sx1 = sx0 + scale;
-      const ix0 = Math.floor(sx0);
+      const sx0 = (dx - offX) / scale;
+      const sx1 = (dx + 1 - offX) / scale;
+      if (sx1 <= 0 || sx0 >= src.width) continue;
+      const ix0 = Math.max(0, Math.floor(sx0));
       const ix1 = Math.min(src.width - 1, Math.ceil(sx1) - 1);
+
       let r = 0;
       let g = 0;
       let b = 0;
+      let a = 0;
       let n = 0;
       for (let sy = iy0; sy <= iy1; sy++) {
         for (let sx = ix0; sx <= ix1; sx++) {
           const i = (sy * src.width + sx) * 4;
-          r += src.rgba[i];
-          g += src.rgba[i + 1];
-          b += src.rgba[i + 2];
+          const alpha = src.rgba[i + 3] / 255;
+          r += src.rgba[i] * alpha;
+          g += src.rgba[i + 1] * alpha;
+          b += src.rgba[i + 2] * alpha;
+          a += alpha;
           n++;
         }
       }
+      if (!n || a === 0) continue;
       const d = (dy * out + dx) * 4;
-      dst[d] = Math.round(r / n);
-      dst[d + 1] = Math.round(g / n);
-      dst[d + 2] = Math.round(b / n);
-      dst[d + 3] = 255;
+      dst[d] = Math.round(r / a);
+      dst[d + 1] = Math.round(g / a);
+      dst[d + 2] = Math.round(b / a);
+      dst[d + 3] = Math.round((a / n) * 255);
     }
   }
   return dst;
-}
-
-// 圆角外区域设为透明（4x4 超采样做边缘抗锯齿），避免素材四角的浅灰底露出来
-function applyRoundedAlpha(rgba, size, radiusRatio = 0.22) {
-  const r = size * radiusRatio;
-  const SS = 4;
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      let inside = 0;
-      for (let sy = 0; sy < SS; sy++) {
-        for (let sx = 0; sx < SS; sx++) {
-          const px = x + (sx + 0.5) / SS;
-          const py = y + (sy + 0.5) / SS;
-          // 到圆角矩形的最近圆心距离判定
-          const cx = Math.min(Math.max(px, r), size - r);
-          const cy = Math.min(Math.max(py, r), size - r);
-          const dx = px - cx;
-          const dy = py - cy;
-          if (dx * dx + dy * dy <= r * r) inside++;
-        }
-      }
-      const i = (y * size + x) * 4 + 3;
-      rgba[i] = Math.round((inside / (SS * SS)) * 255);
-    }
-  }
-  return rgba;
 }
 
 /* ---------------- 主流程 ---------------- */
@@ -258,16 +208,13 @@ function main() {
     process.exit(1);
   }
   const src = decodePNG(readFileSync(SRC));
-  const box = findSubjectBox(src);
-  console.log(
-    `[gen-icons] 素材 ${src.width}x${src.height}，裁出主体 ${box.size}x${box.size} @ (${box.x},${box.y})`
-  );
+  console.log(`[gen-icons] 素材 ${src.width}x${src.height}`);
 
   for (const [file, size] of [
     ['icon.png', 80],
     ['largeIcon.png', 130]
   ]) {
-    const rgba = applyRoundedAlpha(resizeArea(src, box, size), size);
+    const rgba = resizeToSquare(src, size);
     writeFileSync(resolve(ROOT, file), encodePNG(size, size, rgba));
     console.log(`[gen-icons] ${file} (${size}x${size}) 已生成`);
   }
