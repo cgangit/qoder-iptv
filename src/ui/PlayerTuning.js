@@ -87,10 +87,10 @@ export class PlayerTuning {
       const valCls = 'value' + (v === s.def ? ' off' : '');
       return `<div class="${cls}" data-role="row" data-idx="${i}" data-key="${s.key}">
           <span class="label">${t('tune.' + s.key)}</span>
-          <span class="${valCls}"><b class="arrow" data-role="dec">◄</b>${formatValue(
+          <span class="${valCls}"><b class="arrow" data-role="dec">«</b>${formatValue(
         s.key,
         v
-      )}<b class="arrow" data-role="inc">►</b></span>
+      )}<b class="arrow" data-role="inc">»</b></span>
         </div>`;
     }).join('');
 
@@ -113,7 +113,7 @@ export class PlayerTuning {
     const btnIdx = specs.length;
     this.el.innerHTML = `
       <div class="panel">
-        <div class="panel-close" data-role="close">✕</div>
+        <div class="panel-close" data-role="close">×</div>
         <h2>${t('tune.title')}</h2>
         <div class="hint" style="color:${pathColor}">${t(pathKey)}</div>
         <div class="hint tune-warm-status${this.tuning.prefetchSegmentBytes > 0 ? '' : ' hidden'}"></div>

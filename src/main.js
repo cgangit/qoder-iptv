@@ -2,7 +2,7 @@
 // 兼容层必须最先执行：webOS 4.x 是 Chromium 53，缺若干运行时 API。
 import './core/compat.js';
 import { KEY, digitOf } from './core/keys.js';
-import { fetchM3U, applyActiveSource, renumberChannels, groupChannels } from './core/m3uParser.js';
+import { fetchM3U, applyActiveSource, renumberChannels, groupChannels, filterDeadChannels } from './core/m3uParser.js';
 import { epgStore } from './core/epgStore.js';
 import { buildCatchupUrl, probeCatchup } from './core/catchup.js';
 import {
@@ -443,16 +443,25 @@ async function loadSource(src) {
     let channels = parsed;
     // 应用「测试」得到的失效地址过滤：去掉不可播的源，源全没了就删频道（空组自然不显示）
     if (src.deadUrls && src.deadUrls.length) {
-      const dead = new Set(src.deadUrls);
-      channels = channels.filter((ch) => {
-        ch.sources = ch.sources.filter((s) => !dead.has(s.url));
-        if (!ch.sources.length) return false;
-        ch.sourceIdx = 0;
-        applyActiveSource(ch);
-        return true;
-      });
-      // 删掉频道后会缺号，重新连编
-      renumberChannels(channels);
+      // 在副本上裁剪，结果全空时原频道不受影响。
+      const survivors = filterDeadChannels(channels, src.deadUrls);
+      // 失效表是上一次测试的快照，源站恢复或换了清单后就过期了。
+      // 它若把所有频道都滤掉，说明这份表已不可信——宁可全部放回来，
+      // 也不能让用户面对一个空列表（和分组全隐藏时的处理同一个道理）。
+      if (!survivors.length) {
+        src.deadUrls = [];
+        const list = getSources();
+        const item = list.find((s) => s.id === src.id);
+        if (item) {
+          delete item.deadUrls;
+          saveSources(list);
+        }
+      } else {
+        channels = survivors;
+        channels.forEach((ch) => applyActiveSource(ch));
+        // 删掉频道后会缺号，重新连编
+        renumberChannels(channels);
+      }
     }
     if (!channels.length) {
       toast(t('toast.noChannels'));

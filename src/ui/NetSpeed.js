@@ -173,8 +173,8 @@ export class NetSpeed {
   //（片数为 0 时是预热没存进来的原因，不为 0 时是存了却没对上的形态，含义见 Player.warmStatus）
   _warmTag() {
     if (!this.warm) return '';
-    if (this.warm.hit) return '⚡';
-    return '✕' + this.warm.held + (this.warm.note || '');
+    if (this.warm.hit) return '√';
+    return '×' + this.warm.held + (this.warm.note || '');
   }
 
   _fmt(bps) {

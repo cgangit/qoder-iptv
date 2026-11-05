@@ -144,7 +144,7 @@ export class DeviceInfo {
 
     this.el.innerHTML = `
       <div class="panel">
-        <div class="panel-close" data-role="close">✕</div>
+        <div class="panel-close" data-role="close">×</div>
         <h2>${t('settings.deviceInfo')}</h2>
         ${body}
         <div class="hint">${t('di.hint')}</div>

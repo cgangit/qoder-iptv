@@ -115,31 +115,46 @@ async function withResponse(url, signal, timeoutMs, read, headers) {
 }
 
 // 单次请求（含读体）1.2s，整条 HLS 链路2.5s，最多下钻一个变体与切片。
-// 主动取消返回 null，不把取消当作地址失效；超时仍计为失效。
-async function probeUrl(url, perReqMs = 1200, totalMs = 2500, signal) {
+// 返回值：true=可播，false=确定失效，null=被取消，undefined=超时（结论不明）。
+// 超时必须与失效分开：电视上 20 路并发探测挤在一条宽带里，超时太常见了，
+// 把它写成 deadUrls 就会在下次加载时把大量本可播放的频道整批过滤掉。
+// headers 是 M3U 里 #EXTVLCOPT 声明的 UA / Referer：不少源不给就 403，
+// 探测不带它们会把能播的频道全判成失效，随后整源被过滤空。
+async function probeUrl(url, perReqMs = 1200, totalMs = 2500, signal, headers) {
   const scope = requestScope(signal, totalMs);
   try {
-    const result = await _probeInner(url, perReqMs, scope.controller.signal);
+    const result = await _probeInner(url, perReqMs, scope.controller.signal, headers);
     checkAbort(scope.controller.signal);
     return result;
   } catch (e) {
-    return signal && signal.aborted ? null : false;
+    if (signal && signal.aborted) return null; // 任务被主动取消
+    // 内层每请求超时会把 AbortError 抛上来；这类失败只说明慢，不说明地址失效。
+    if ((e && e.name === 'AbortError') || scope.controller.signal.aborted) return undefined;
+    return false;
   } finally {
     scope.dispose();
   }
 }
 
-async function _probeInner(url, perReqMs, signal) {
-  const get = (u, headOnly = false) => withResponse(u, signal, perReqMs, async (res, requestSignal) => {
-    if (!res.ok) return { ok: false };
-    const ct = (res.headers.get('content-type') || '').toLowerCase();
-    const isM3u8 = /\.m3u8(\?|$)/i.test(u) || /mpegurl|octet-stream|text\/plain/.test(ct);
-    const direct = !isM3u8 && (/^video\//.test(ct) || /mp4|mpeg|flv/.test(ct));
-    return {
-      ok: true, isM3u8, direct, base: responseBaseUrl(res, u),
-      text: headOnly || direct ? '' : await getText(res, requestSignal, 512000)
-    };
-  }, headOnly ? { Range: 'bytes=0-1' } : undefined);
+async function _probeInner(url, perReqMs, signal, headers) {
+  const get = (u, headOnly = false) => {
+    let reqHeaders;
+    if (headers && Object.keys(headers).length) reqHeaders = Object.assign({}, headers);
+    if (headOnly) {
+      reqHeaders = reqHeaders || {};
+      reqHeaders.Range = 'bytes=0-1';
+    }
+    return withResponse(u, signal, perReqMs, async (res, requestSignal) => {
+      if (!res.ok) return { ok: false };
+      const ct = (res.headers.get('content-type') || '').toLowerCase();
+      const isM3u8 = /\.m3u8(\?|$)/i.test(u) || /mpegurl|octet-stream|text\/plain/.test(ct);
+      const direct = !isM3u8 && (/^video\//.test(ct) || /mp4|mpeg|flv/.test(ct));
+      return {
+        ok: true, isM3u8, direct, base: responseBaseUrl(res, u),
+        text: headOnly || direct ? '' : await getText(res, requestSignal, 512000)
+      };
+    }, reqHeaders);
+  };
 
   const r = await get(url);
   if (!r.ok) return false;
@@ -316,7 +331,7 @@ export class SourceManager {
 
     this.el.innerHTML = `
       <div class="panel">
-        <div class="panel-close" data-role="close">✕</div>
+        <div class="panel-close" data-role="close">×</div>
         <h2>${t('sm.title')}</h2>
         <div class="src-input-hint">${t('sm.navigateHint')}</div>
         ${editing ? `<div class="hint" style="color:#7fd6ff">${t('sm.editing', { name: esc(editing.name) })} <span class="row-edit" data-role="cancel-edit" style="margin-left:12px">${t('sm.cancelEdit')}</span></div>` : ''}
@@ -486,6 +501,10 @@ export class SourceManager {
         s.name = this.form.name.trim() || t('sm.unnamed');
         s.m3uUrl = this.form.m3uUrl.trim();
         s.epgUrl = this.form.epgUrl.trim();
+        // 上次「测试」留下的失效地址可能早已恢复，也可能属于旧清单。
+        // 用户改动这个源就是想要一个新起点：清掉失效表，频道先全部回来，
+        // 需要再剔除时重新跑一次测试即可。
+        delete s.deadUrls;
         saveSources(this.sources);
         // 改的是正在使用的源：立即重载让改动生效
         if (getActiveSourceId() === s.id && this.onUseSource) this.onUseSource(s);
@@ -595,15 +614,24 @@ export class SourceManager {
       if (!isCurrent()) return;
       const { channels } = parseM3U(text, baseUrl);
       const urlSet = new Set();
-      for (const ch of channels) for (const s of ch.sources) urlSet.add(s.url);
+      // 同一地址可能被多个频道共用；#EXTVLCOPT 的 UA/Referer 跟着地址走。
+      const headersFor = new Map();
+      for (const ch of channels) {
+        for (const s of ch.sources) {
+          urlSet.add(s.url);
+          if (s.headers && Object.keys(s.headers).length) headersFor.set(s.url, s.headers);
+        }
+      }
       const urls = [...urlSet];
       if (!urls.length) throw new Error(t('sm.noTestable'));
       const dead = new Set();
       let done = 0;
       await runPool(urls, 20, async (u) => {
-        const ok = await probeUrl(u, 1200, 2500, run.controller.signal);
+        const ok = await probeUrl(u, 1200, 2500, run.controller.signal, headersFor.get(u));
         if (!isCurrent() || ok === null) return;
-        if (!ok) dead.add(u);
+        // 只有确定的失败才记进失效表；超时（undefined）保持原样，
+        // 下次加载不会被它连带剔除。
+        if (ok === false) dead.add(u);
         done++;
         if (done % 6 === 0 || done === urls.length) setRowMsg(t('sm.testingProgress', { done, total: urls.length }));
       }, isCurrent);

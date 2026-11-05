@@ -88,14 +88,14 @@ export class Settings {
         const cls = 'form-row' + (i === this.focusIdx ? ' focused' : '');
         const val =
           r.type === 'select'
-            ? `<span class="value"><b class="arrow" data-role="dec">◄</b>${r.value}<b class="arrow" data-role="inc">►</b></span>`
+            ? `<span class="value"><b class="arrow" data-role="dec">«</b>${r.value}<b class="arrow" data-role="inc">»</b></span>`
             : '';
         return `<div class="${cls}" data-role="row" data-idx="${i}"><span class="label">${r.label}</span>${val}</div>`;
       })
       .join('');
     this.el.innerHTML = `
       <div class="panel">
-        <div class="panel-close" data-role="close">✕</div>
+        <div class="panel-close" data-role="close">×</div>
         <h2>${t('settings.title')}</h2>
         <div class="src-list">${html}</div>
         <div class="hint">${t('settings.hint')}</div>

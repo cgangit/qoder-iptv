@@ -17,7 +17,7 @@ const DICT = {
     'settings.sourceManager': '直播源管理',
     'settings.groupManager': '分组显示管理',
     'settings.hint':
-      '上下选择，左右调整数值，OK 执行按钮项，返回键关闭。<br>鼠标：点行切换/执行，点 ◄ ► 调值，点面板外或右上角 ✕ 关闭。',
+      '上下选择，左右调整数值，OK 执行按钮项，返回键关闭。<br>鼠标：点行切换/执行，点 « » 调值，点面板外或右上角 × 关闭。',
     'label.fill': '填充',
     'label.auto': '自动',
     'label.native': '原生',
@@ -55,7 +55,7 @@ const DICT = {
     'startup.fallback.hevc': 'HEVC 不受 MSE 支持',
     'startup.fallback.audio': '音轨不受 MSE 支持',
     'tune.title': '播放器参数',
-    'tune.reset': '↺ 恢复默认全部参数',
+    'tune.reset': '恢复默认全部参数',
     'tune.pathHls': '当前解码：hls.js —— 缓冲预热门槛可即时调整',
     'tune.pathNative': '当前解码：系统原生 —— hls.js 参数无效；预热闸门需系统提供缓冲信息',
     'tune.pathIdle': '当前没在播放 —— 参数已保存，下次起播生效',
@@ -80,7 +80,7 @@ const DICT = {
       '开：尽量从首个可播缓冲区间的起点开始，减少片内定位等待；源的关键帧与音视频时间戳仍会影响起播。关：允许从分片中间开始。',
     'tune.prefetchSegmentBytes': '邻台预热单片上限',
     'tune.prefetchSegmentBytes.d':
-      '当前台达到预热缓冲门槛后，把上下相邻两个台起播位置附近的连续 2 个分片拉进内存；启动/暂停余量与自适应保护可在下方调整。用 CH+/- 切过去时不再现下分片，而是让播放器直接从内存里已有的那一片开始播——实测命中时起播 0.4 秒，未命中 4 秒。起播点会退到已缓存的那一片上，但首帧提前的时间和退后的时间基本相等，所以直播延迟几乎不变。这里设的是单片上限，比它大的分片直接跳过，所以必须比你的源的实际片大小大，否则一片都存不下（实测这批源单片 5~6MB，设 8MB 合适）。效果看网速角标的起播秒数后面：⚡ = 命中；✕ 后面是换台那刻存着几片，加字母说明卡在哪（b 单片超上限，往大调；s 缓存的片已滑出这个台的清单窗口，停留太久了；w 后面再跟一位说明这个台的预热走到哪步：- 没排进预热，连按翻台越过了相邻台；0 排进队了但没轮到下就被换台清空（停留时间不够，属时间墙：单片 2.4 秒，先排的方向约 2.6 秒就绪、后排的约 5 秒，所以会优先热你刚才翻台的那个方向）；a 换台那刻正在下、被让路掐掉；e 请求被服务器拒；b 都超上限；k 存进去了却对不上；m 清单没拉到）。后台流量约为本值×4；如果当前台或新台反而变慢，说明预热在抢带宽，设 0 关掉。',
+      '当前台达到预热缓冲门槛后，把上下相邻两个台起播位置附近的连续 2 个分片拉进内存；启动/暂停余量与自适应保护可在下方调整。用 CH+/- 切过去时不再现下分片，而是让播放器直接从内存里已有的那一片开始播——实测命中时起播 0.4 秒，未命中 4 秒。起播点会退到已缓存的那一片上，但首帧提前的时间和退后的时间基本相等，所以直播延迟几乎不变。这里设的是单片上限，比它大的分片直接跳过，所以必须比你的源的实际片大小大，否则一片都存不下（实测这批源单片 5~6MB，设 8MB 合适）。效果看网速角标的起播秒数后面：√ = 命中；× 后面是换台那刻存着几片，加字母说明卡在哪（b 单片超上限，往大调；s 缓存的片已滑出这个台的清单窗口，停留太久了；w 后面再跟一位说明这个台的预热走到哪步：- 没排进预热，连按翻台越过了相邻台；0 排进队了但没轮到下就被换台清空（停留时间不够，属时间墙：单片 2.4 秒，先排的方向约 2.6 秒就绪、后排的约 5 秒，所以会优先热你刚才翻台的那个方向）；a 换台那刻正在下、被让路掐掉；e 请求被服务器拒；b 都超上限；k 存进去了却对不上；m 清单没拉到）。后台流量约为本值×4；如果当前台或新台反而变慢，说明预热在抢带宽，设 0 关掉。',
     'tune.fragParallel': '分片并行下载',
     'tune.lanes': ' 路',
     'tune.fragParallel.d':
@@ -107,8 +107,8 @@ const DICT = {
     'sm.title': '直播源管理',
     'sm.inUse': '（使用中）',
     'sm.testing': '测试中…',
-    'sm.test': '⟳ 测试',
-    'sm.delete': '✕ 删除',
+    'sm.test': '测试',
+    'sm.delete': '× 删除',
     'sm.empty': '还没有直播源，请在上方添加。',
     'sm.name': '名称',
     'sm.m3uUrl': 'M3U 地址',
@@ -121,7 +121,7 @@ const DICT = {
     'sm.navigateHint': '上下选择名称 / M3U / EPG / 保存，OK 开始输入；EPG 可留空。',
     'sm.inputHint': '正在输入：{field} · 方向键选字，OK 确认字符；键盘回车到下一项，返回结束输入。',
     'sm.hint':
-      '收起键盘后，上下可往返修改任意输入项，OK 重新输入；到保存按钮后按 OK 保存。绿色键编辑，蓝色键删除，非输入时返回关闭。<br>鼠标：点行使用，点 ✎ 编辑、⟳ 测试、✕ 删除，点面板外或右上角 ✕ 关闭。',
+      '收起键盘后，上下可往返修改任意输入项，OK 重新输入；到保存按钮后按 OK 保存。绿色键编辑，蓝色键删除，非输入时返回关闭。<br>鼠标：点行使用，点“编辑 / 测试 / 删除”，点面板外或右上角 × 关闭。',
     'sm.unnamed': '未命名源',
     'sm.pulling': '正在拉取源…',
     'sm.testingProgress': '测试中 {done}/{total}…',
@@ -130,8 +130,8 @@ const DICT = {
     'sm.testFailed': '测试失败：{msg}',
     'sm.noTestable': '该源没有可测试的频道',
     'sm.netError': '网络错误',
-    'sm.edit': '✎ 编辑',
-    'sm.saveEdit': '✓ 保存修改',
+    'sm.edit': '编辑',
+    'sm.saveEdit': '保存修改',
     'sm.editing': '正在编辑：{name}',
     'sm.cancelEdit': '取消编辑',
 
@@ -140,7 +140,7 @@ const DICT = {
     'gm.sub': '当前源：{name} · 显示 {n}/{total} 个分组',
     'gm.rowShown': '{n} 个频道 · 显示',
     'gm.rowHidden': '{n} 个频道 · 已隐藏',
-    'gm.showAll': '↺ 全部显示',
+    'gm.showAll': '全部显示',
     'gm.keepOne': '至少要保留一个显示的分组',
     'gm.empty': '当前源没有可管理的分组',
     'gm.hint':
@@ -192,9 +192,9 @@ const DICT = {
 
     // 频道菜单
     'cm.favGroup': '★ 收藏',
-    'cm.channelHint': '节目单/回看 ›',
+    'cm.channelHint': '节目单/回看 »',
     'cm.srcBadge': '{n}源',
-    'cm.catchup': '⟲回看',
+    'cm.catchup': '回看',
     'cm.noEpg': '暂无节目单数据',
     'cm.settings': '设置',
     'cm.date': '日期',
@@ -203,7 +203,7 @@ const DICT = {
     'cm.channels': '频道（{n}）',
 
     // EPG 指南
-    'eg.catchup': '⟲可回看',
+    'eg.catchup': '可回看',
     'eg.noEpg': '该日暂无节目单数据',
     'eg.title': '节目指南',
 
@@ -215,7 +215,7 @@ const DICT = {
 
     // 回看控制条
     'cb.catchup': '回看',
-    'cb.title': '⟲ 回看 · {title}',
+    'cb.title': '回看 · {title}',
 
     // OSD
     'osd.catchup': '回看',
@@ -223,7 +223,7 @@ const DICT = {
     'osd.latency': '延迟 {s}s',
     'osd.nowPlayingNone': '正在播放：暂无节目信息',
     'osd.nextPlaying': '即将播放：{title} {time}',
-    'osd.source': '◀ 源 {n}/{total}：{label} ▶',
+    'osd.source': '« 源 {n}/{total}：{label} »',
 
     // 日期 / 星期
     'date.today': '今天',
@@ -279,9 +279,9 @@ const DICT = {
     'di.sysFailed': '取系统信息失败',
     'di.appVersion': '应用版本',
     'di.openSource': '开源组件',
-    'di.again': '↻ 重新检测',
-    'di.rawShow': '▼ 原始返回',
-    'di.rawHide': '▲ 收起原始返回',
+    'di.again': '重新检测',
+    'di.rawShow': '↓ 原始返回',
+    'di.rawHide': '↑ 收起原始返回',
     'di.hint': '左右键选按钮，OK 执行，上下键翻看信息，返回键关闭。',
 
     // 网速角标诊断
@@ -320,7 +320,7 @@ const DICT = {
     'settings.sourceManager': 'Live Source Manager',
     'settings.groupManager': 'Group Visibility',
     'settings.hint':
-      'Up/Down to select, Left/Right to adjust, OK to run button items, Back to close.<br>Mouse: click a row to switch/run, click ◄ ► to adjust, click outside or ✕ to close.',
+      'Up/Down to select, Left/Right to adjust, OK to run button items, Back to close.<br>Mouse: click a row to switch/run, click « » to adjust, click outside or × to close.',
     'label.fill': 'Fill',
     'label.auto': 'Auto',
     'label.native': 'Native',
@@ -358,7 +358,7 @@ const DICT = {
     'startup.fallback.hevc': 'HEVC unsupported by MSE',
     'startup.fallback.audio': 'audio unsupported by MSE',
     'tune.title': 'Player Tuning',
-    'tune.reset': '↺ Reset All to Defaults',
+    'tune.reset': 'Reset All to Defaults',
     'tune.pathHls': 'Decoder: hls.js — prefetch buffer thresholds can be adjusted immediately',
     'tune.pathNative': 'Native decoder — hls.js settings have no effect; prefetch gating requires reported buffer data',
     'tune.pathIdle': 'Nothing playing — saved settings apply on next start',
@@ -383,7 +383,7 @@ const DICT = {
       'On: start near the beginning of the first playable buffered range to reduce mid-segment seeking. Keyframes and audio/video timestamps still affect startup. Off: allow starting mid-segment.',
     'tune.prefetchSegmentBytes': 'Neighbour Prefetch Cap (per segment)',
     'tune.prefetchSegmentBytes.d':
-      'Once the current buffer meets the prefetch threshold, 2 consecutive segments around the startup point of the previous/next channel are pulled into memory. Adjust start/pause buffers and adaptive safety below; zapping with CH+/- no longer downloads a segment — the player is told to start from a segment already in memory. Measured 0.4s startup on a hit versus 4s on a miss. The start point shifts back to the cached segment, but the first frame arrives earlier by about the same amount, so live latency is essentially unchanged. This is a PER-SEGMENT cap — anything bigger is skipped, so it must exceed your source\'s actual segment size or nothing gets cached (measured ~5-6MB here, so 8MB works). Watch the tag after the startup time in the speed badge: ⚡ = hit; after ✕ comes how many segments were held at zap time plus letters (b = segment over the cap, raise it; s = the cached segments have slid out of this channel\'s playlist window, you dwelled too long; w plus one more letter telling how far this channel\'s prefetch got: - never queued, you surfed past the immediate neighbours; 0 queued but no segment even started before the zap cleared the queue (you did not dwell long enough — a hard time wall: 2.4s per segment, so the first-queued direction is ready at ~2.6s and the other at ~5s, which is why the direction you last zapped in is prefetched first); a it was mid-download at zap time and got cancelled to yield bandwidth; e the request was rejected; b all segments over the cap; k downloaded and stored but the paths do not match; m the playlist could not be fetched). Background traffic is roughly 4× this value; if the current or the new channel gets slower instead, the prefetch is stealing bandwidth — set 0 to disable.',
+      'Once the current buffer meets the prefetch threshold, 2 consecutive segments around the startup point of the previous/next channel are pulled into memory. Adjust start/pause buffers and adaptive safety below; zapping with CH+/- no longer downloads a segment — the player is told to start from a segment already in memory. Measured 0.4s startup on a hit versus 4s on a miss. The start point shifts back to the cached segment, but the first frame arrives earlier by about the same amount, so live latency is essentially unchanged. This is a PER-SEGMENT cap — anything bigger is skipped, so it must exceed your source\'s actual segment size or nothing gets cached (measured ~5-6MB here, so 8MB works). Watch the tag after the startup time in the speed badge: √ = hit; after × comes how many segments were held at zap time plus letters (b = segment over the cap, raise it; s = the cached segments have slid out of this channel\'s playlist window, you dwelled too long; w plus one more letter telling how far this channel\'s prefetch got: - never queued, you surfed past the immediate neighbours; 0 queued but no segment even started before the zap cleared the queue (you did not dwell long enough — a hard time wall: 2.4s per segment, so the first-queued direction is ready at ~2.6s and the other at ~5s, which is why the direction you last zapped in is prefetched first); a it was mid-download at zap time and got cancelled to yield bandwidth; e the request was rejected; b all segments over the cap; k downloaded and stored but the paths do not match; m the playlist could not be fetched). Background traffic is roughly 4× this value; if the current or the new channel gets slower instead, the prefetch is stealing bandwidth — set 0 to disable.',
     'tune.fragParallel': 'Parallel Segment Download',
     'tune.lanes': ' lanes',
     'tune.fragParallel.d':
@@ -415,8 +415,8 @@ const DICT = {
     'sm.title': 'Live Source Manager',
     'sm.inUse': '(In Use)',
     'sm.testing': 'Testing…',
-    'sm.test': '⟳ Test',
-    'sm.delete': '✕ Delete',
+    'sm.test': 'Test',
+    'sm.delete': '× Delete',
     'sm.empty': 'No live sources yet. Add one above.',
     'sm.name': 'Name',
     'sm.m3uUrl': 'M3U URL',
@@ -429,7 +429,7 @@ const DICT = {
     'sm.navigateHint': 'Up/Down: Name / M3U / EPG / Save. OK starts typing. EPG is optional.',
     'sm.inputHint': 'Typing: {field} · Arrows select keys, OK types a character. Keyboard Enter: next field. Back: finish typing.',
     'sm.hint':
-      'After closing the keyboard, use Up/Down to revisit any field and OK to edit. Press OK on Save to save. Green to edit, Blue to delete, Back outside input to close.<br>Mouse: click a row to use, ✎ to edit, ⟳ to test, ✕ to delete, outside or top-right ✕ to close.',
+      'After closing the keyboard, use Up/Down to revisit any field and OK to edit. Press OK on Save to save. Green to edit, Blue to delete, Back outside input to close.<br>Mouse: click a row to use, “Edit / Test / Delete”, outside or top-right × to close.',
     'sm.unnamed': 'Unnamed Source',
     'sm.pulling': 'Fetching source…',
     'sm.testingProgress': 'Testing {done}/{total}…',
@@ -438,8 +438,8 @@ const DICT = {
     'sm.testFailed': 'Test failed: {msg}',
     'sm.noTestable': 'No testable channels in this source',
     'sm.netError': 'Network error',
-    'sm.edit': '✎ Edit',
-    'sm.saveEdit': '✓ Save Changes',
+    'sm.edit': 'Edit',
+    'sm.saveEdit': 'Save Changes',
     'sm.editing': 'Editing: {name}',
     'sm.cancelEdit': 'Cancel',
 
@@ -448,7 +448,7 @@ const DICT = {
     'gm.sub': 'Current source: {name} · {n}/{total} groups shown',
     'gm.rowShown': '{n} channels · Shown',
     'gm.rowHidden': '{n} channels · Hidden',
-    'gm.showAll': '↺ Show All',
+    'gm.showAll': 'Show All',
     'gm.keepOne': 'At least one group must stay visible',
     'gm.empty': 'No groups to manage in this source',
     'gm.hint':
@@ -501,9 +501,9 @@ const DICT = {
 
     // Channel Menu
     'cm.favGroup': '★ Favorites',
-    'cm.channelHint': 'EPG / Catch-up ›',
+    'cm.channelHint': 'EPG / Catch-up »',
     'cm.srcBadge': '{n} src',
-    'cm.catchup': '⟲Catch-up',
+    'cm.catchup': 'Catch-up',
     'cm.noEpg': 'No EPG data',
     'cm.settings': 'Settings',
     'cm.date': 'Date',
@@ -512,7 +512,7 @@ const DICT = {
     'cm.channels': 'Channels ({n})',
 
     // EPG Guide
-    'eg.catchup': '⟲Catch-up',
+    'eg.catchup': 'Catch-up',
     'eg.noEpg': 'No EPG data for this day',
     'eg.title': 'EPG Guide',
 
@@ -524,7 +524,7 @@ const DICT = {
 
     // Catch-up Bar
     'cb.catchup': 'Catch-up',
-    'cb.title': '⟲ Catch-up · {title}',
+    'cb.title': 'Catch-up · {title}',
 
     // OSD
     'osd.catchup': 'Catch-up',
@@ -532,7 +532,7 @@ const DICT = {
     'osd.latency': 'Delay {s}s',
     'osd.nowPlayingNone': 'Now: no programme info',
     'osd.nextPlaying': 'Next: {title} {time}',
-    'osd.source': '◀ Source {n}/{total}: {label} ▶',
+    'osd.source': '« Source {n}/{total}: {label} »',
 
     // Date / Weekday
     'date.today': 'Today',
@@ -588,9 +588,9 @@ const DICT = {
     'di.sysFailed': 'System info lookup failed',
     'di.appVersion': 'App Version',
     'di.openSource': 'Open Source',
-    'di.again': '↻ Detect Again',
-    'di.rawShow': '▼ Raw Output',
-    'di.rawHide': '▲ Hide Raw Output',
+    'di.again': 'Detect Again',
+    'di.rawShow': '↓ Raw Output',
+    'di.rawHide': '↑ Hide Raw Output',
     'di.hint': 'Left/Right to choose a button, OK to run, Up/Down to scroll, Back to close.',
 
     // Speed badge diagnostics

@@ -171,7 +171,7 @@ export class ChannelMenu {
       <div class="cm-col cm-groups">
         <div class="cm-title">${t('cm.group')}</div>
         <div class="cm-list" id="cm-group-list"></div>
-        <div class="cm-settings" id="cm-settings" data-role="settings"><span class="ico">⚙</span><span>${t('cm.settings')}</span></div>
+        <div class="cm-settings" id="cm-settings" data-role="settings"><span class="ico">···</span><span>${t('cm.settings')}</span></div>
       </div>
       <div class="cm-col cm-channels">
         <div class="cm-title" id="cm-chan-title"></div>

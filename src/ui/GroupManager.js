@@ -85,7 +85,7 @@ export class GroupManager {
     const btnIdx = this.groups.length;
     this.el.innerHTML = `
       <div class="panel">
-        <div class="panel-close" data-role="close">✕</div>
+        <div class="panel-close" data-role="close">×</div>
         <h2>${t('gm.title')}</h2>
         <div class="hint">${t('gm.sub', { name: esc(this.srcName), n: this._visibleCount(), total: this.groups.length })}</div>
         <div class="src-list">${listHtml}</div>

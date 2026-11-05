@@ -176,6 +176,25 @@ export function renumberChannels(channels) {
 }
 
 /**
+ * 按「测试」得到的失效地址表裁剪频道：地址全被删掉的频道整条移除。
+ * 返回新数组、频道也做浅拷贝（只替换 sources 并重置 sourceIdx），
+ * 不改动传入对象——上层在结果为空时要能干净地回退到全量频道。
+ * @param {Array} channels
+ * @param {Iterable<string>} deadUrls
+ * @returns {Array}
+ */
+export function filterDeadChannels(channels, deadUrls) {
+  const dead = deadUrls instanceof Set ? deadUrls : new Set(deadUrls || []);
+  const out = [];
+  for (const ch of channels) {
+    const sources = ch.sources.filter((s) => !dead.has(s.url));
+    if (!sources.length) continue;
+    out.push({ ...ch, sources, sourceIdx: 0 });
+  }
+  return out;
+}
+
+/**
  * 按 group-title 分组，收藏组置顶由上层处理
  * @param {Array} channels
  * @returns {Array<{ name, channels }>}

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { setMaxListeners } from 'node:events';
 import vm from 'node:vm';
-import { parseM3U } from '../src/core/m3uParser.js';
+import { parseM3U, filterDeadChannels } from '../src/core/m3uParser.js';
 import { resolveMediaUrl } from '../src/core/net.js';
 import { KEY } from '../src/core/keys.js';
 import { esc } from '../src/core/util.js';
@@ -200,6 +200,39 @@ function serveOne(f, video = () => response('', { type: 'video/mp2t' })) {
     ? response(playlist([channelUrl(0)]))
     : video(request));
 }
+
+test('filterDeadChannels drops only dead urls and keeps channels with survivors', () => {
+  const channels = [
+    { name: 'A', group: 'G', sourceIdx: 1, sources: [{ url: 'a1' }, { url: 'a2' }] },
+    { name: 'B', group: 'G', sourceIdx: 0, sources: [{ url: 'b1' }] },
+    { name: 'C', group: 'G', sourceIdx: 2, sources: [{ url: 'c1' }] }
+  ];
+  const out = filterDeadChannels(channels, ['a2', 'b1']);
+  assert.deepEqual(out.map((ch) => ch.name), ['A', 'C']);
+  assert.deepEqual(out[0].sources, [{ url: 'a1' }]);
+  assert.deepEqual(out[1].sources, [{ url: 'c1' }]);
+  assert.equal(out[0].sourceIdx, 0);
+  assert.equal(out[1].sourceIdx, 0);
+  // 原频道未被改动，全部地址失效时上层可以安全回退到全量频道。
+  assert.deepEqual(channels[0].sources, [{ url: 'a1' }, { url: 'a2' }]);
+  assert.equal(channels[0].sourceIdx, 1);
+  assert.deepEqual(channels[1].sources, [{ url: 'b1' }]);
+});
+
+test('filterDeadChannels returns an empty list when every source is dead', () => {
+  const channels = [
+    { name: 'A', group: 'G', sourceIdx: 0, sources: [{ url: 'a1' }] },
+    { name: 'B', group: 'G', sourceIdx: 1, sources: [{ url: 'b1' }] }
+  ];
+  assert.deepEqual(filterDeadChannels(channels, ['a1', 'b1']), []);
+  assert.equal(channels[0].sources.length, 1);
+});
+
+test('filterDeadChannels accepts a Set and tolerates a missing dead list', () => {
+  const channels = [{ name: 'A', group: 'G', sourceIdx: 0, sources: [{ url: 'a1' }, { url: 'a2' }] }];
+  assert.equal(filterDeadChannels(channels, new Set(['a1']))[0].sources.length, 1);
+  assert.equal(filterDeadChannels(channels, undefined)[0].sources.length, 2);
+});
 
 test('clicking and re-clicking a source input preserves its node and caret', (t) => {
   const f = inputFixture(t);
@@ -434,6 +467,20 @@ test('typed source values persist through save, reopen and editing an existing s
   assert.equal(f.saves.length, 2);
 });
 
+test('editing a source clears stale test results so hidden channels come back', (t) => {
+  const f = inputFixture(t, [{ ...SOURCE, deadUrls: ['https://video.test/0.ts'] }]);
+  f.manager.open();
+  f.manager._editSource(0);
+  const input = f.input('src-name');
+  input.value = 'Renamed';
+  input.oninput();
+  f.manager.focusIdx = 3;
+  f.manager.handleKey(KEY.OK);
+  assert.equal(f.stored().length, 1);
+  assert.equal(f.stored()[0].deadUrls, undefined);
+  assert.equal(f.stored()[0].name, 'Renamed');
+});
+
 test('direct video and HTTP error bodies are canceled without reading or awaiting cancellation', async (t) => {
   const f = fixture(t);
   for (const status of [200, 404]) {
@@ -446,6 +493,28 @@ test('direct video and HTTP error bodies are canceled without reading or awaitin
     assert.equal(f.calls.at(-1).signal.aborted, true);
     assert.equal(f.time.timers.size, 0);
   }
+});
+
+test('probe forwards M3U UA/Referer on every request and keeps Range on the segment', async (t) => {
+  const f = fixture(t);
+  const segment = openResponse();
+  const master = response('#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1\nchild.m3u8', {
+    url: 'https://cdn.test/live/master.m3u8'
+  });
+  const child = response('#EXTM3U\n#EXTINF:5,\nseg.ts', { url: 'https://cdn.test/live/child.m3u8' });
+  f.fetch(({ url }) => url === 'https://video.test/master.m3u8' ? master
+    : url.endsWith('child.m3u8') ? child : segment.res);
+  const headers = { 'User-Agent': 'VLC/3.0', Referer: 'https://ref.test/' };
+  assert.equal(await f.api.probeUrl('https://video.test/master.m3u8', 1200, 2500, undefined, headers), true);
+  assert.equal(f.calls.length, 3);
+  for (const call of f.calls.slice(0, 2)) {
+    assert.equal(call.headers['User-Agent'], 'VLC/3.0');
+    assert.equal(call.headers.Referer, 'https://ref.test/');
+  }
+  assert.equal(f.calls[2].headers['User-Agent'], 'VLC/3.0');
+  assert.equal(f.calls[2].headers.Referer, 'https://ref.test/');
+  assert.equal(f.calls[2].headers.Range, 'bytes=0-1');
+  assert.equal(headers.Range, undefined, 'caller headers must not be mutated');
 });
 
 test('HLS master, variant and ranged segment all release their responses', async (t) => {
@@ -510,7 +579,7 @@ test('malformed playlists, empty variants and HTTP failures stop and release eac
   }
 });
 
-test('probe request timeout includes headers and body; intentional abort is not a dead URL', async (t) => {
+test('probe timeout covers headers and body but is inconclusive; intentional abort is not a dead URL', async (t) => {
   const f = fixture(t);
   for (const stage of ['headers', 'body']) {
     const body = openResponse({ type: 'text/plain', text: '#EXTM3U\n' });
@@ -520,7 +589,7 @@ test('probe request timeout includes headers and body; intentional abort is not 
     await f.time.advance(1199);
     assert.equal(f.calls.at(-1).signal.aborted, false);
     await f.time.advance(1);
-    assert.equal(await task, false);
+    assert.equal(await task, undefined, 'timeout is inconclusive, not dead');
     assert.equal(f.calls.at(-1).signal.aborted, true);
     if (stage === 'body') {
       assert.equal(body.cancels, 1);
@@ -556,7 +625,7 @@ test('total probe budget caps a chain even when each request is under its own ti
   await f.time.advance(499);
   assert.equal(pending[2].signal.aborted, false);
   await f.time.advance(1);
-  assert.equal(await task, false);
+  assert.equal(await task, undefined, 'budget exhaustion is inconclusive, not dead');
   assert.equal(pending[2].signal.aborted, true);
 });
 
@@ -990,17 +1059,17 @@ test('relative channel URLs use final M3U URL, unwrap only dev proxy u, and fall
   }
 });
 
-test('probe timeout records a dead URL, unlike intentional task cancellation', async (t) => {
+test('probe timeout is not persisted as dead, unlike intentional task cancellation', async (t) => {
   const f = fixture(t);
   serveOne(f, (request) => pendingRequest(request).promise);
   const task = f.manager._testSource(0);
   await flush();
   await f.time.advance(1200);
   await task;
-  assert.deepEqual(f.stored()[0].deadUrls, [channelUrl(0)]);
+  assert.deepEqual(f.stored()[0].deadUrls, []);
   assert.equal(f.saves.length, 1);
   assert.equal(f.reloads.length, 1);
-  assert.match(f.manager.testMsg, /^sm.testDone/);
+  assert.match(f.manager.testMsg, /"kept":1,"dead":0/);
 });
 
 test('HTTP and empty initial playlists fail cleanly; local and closed sources never fetch', async (t) => {
